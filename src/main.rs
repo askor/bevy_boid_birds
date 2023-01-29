@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy::window::WindowId;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
-use bevy_game::GamePlugin;
+use bevy_boid_birds::GamePlugin;
 use std::io::Cursor;
 use winit::window::Icon;
 
@@ -17,7 +17,7 @@ fn main() {
             window: WindowDescriptor {
                 width: 800.,
                 height: 600.,
-                title: "Bevy game".to_string(), // ToDo
+                title: "Bevy Boid Birds".to_string(),
                 canvas: Some("#bevy".to_owned()),
                 ..Default::default()
             },
