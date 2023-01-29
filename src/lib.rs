@@ -44,6 +44,9 @@ impl Plugin for GamePlugin {
             .add_plugin(PlayerPlugin)
             .add_plugin(ScenePlugin)
             .add_plugin(CameraPlugin)
+            
+            // External
+            .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin)
             ;
 
         #[cfg(debug_assertions)]
