@@ -15,6 +15,7 @@ impl Plugin for LoadingPlugin {
                 .with_collection::<FontAssets>()
                 .with_collection::<AudioAssets>()
                 .with_collection::<TextureAssets>()
+                .with_collection::<SceneAssets>()
                 .continue_to_state(GameState::Menu),
         );
     }
@@ -22,6 +23,12 @@ impl Plugin for LoadingPlugin {
 
 // the following asset collections will be loaded during the State `GameState::Loading`
 // when done loading, they will be inserted as resources (see <https://github.com/NiklasEi/bevy_asset_loader>)
+
+#[derive(AssetCollection, Resource)]
+pub struct SceneAssets {
+    #[asset(path = "models/bird_flight_animation.glb#Scene0")]
+    pub bird: Handle<Scene>,
+}
 
 #[derive(AssetCollection, Resource)]
 pub struct FontAssets {

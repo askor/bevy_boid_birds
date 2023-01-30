@@ -5,6 +5,7 @@ mod menu;
 mod player;
 mod scene;
 mod camera;
+mod boids;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
@@ -13,6 +14,7 @@ use crate::menu::MenuPlugin;
 use crate::player::PlayerPlugin;
 use crate::scene::ScenePlugin;
 use crate::camera::CameraPlugin;
+use crate::boids::BoidsPlugin;
 
 use bevy::app::App;
 #[cfg(debug_assertions)]
@@ -44,6 +46,7 @@ impl Plugin for GamePlugin {
             .add_plugin(PlayerPlugin)
             .add_plugin(ScenePlugin)
             .add_plugin(CameraPlugin)
+            .add_plugin(BoidsPlugin)
             
             // External
             .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin)
