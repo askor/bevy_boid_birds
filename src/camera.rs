@@ -27,10 +27,21 @@ fn setup_camera(
 fn rotate_camera(
     mut query: Query<&mut Transform, With<Camera>>,
     time: Res<Time>,
+    keyboard_input: Res<Input<KeyCode>>,
 ) {
+    let mut movement = 0.0;
+
+    if keyboard_input.pressed(KeyCode::Left) {
+        movement = -1.0;
+    } else if keyboard_input.pressed(KeyCode::Right) {
+        movement = 1.0;
+    } else {
+        return;
+    }
+
     let mut cam_transform = query.single_mut();
     let focus = Vec3::new(0., 1., 0.);
 
-    cam_transform.translate_around(focus, Quat::from_rotation_y(time.delta_seconds()));
+    cam_transform.translate_around(focus, Quat::from_rotation_y(time.delta_seconds() * movement ));
     cam_transform.look_at(focus, Vec3::Y)
 }
