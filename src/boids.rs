@@ -1,5 +1,9 @@
+use std::num;
+
 use bevy::prelude::*;
 use crate::{GameState, loading::SceneAssets};
+
+const SPEED: f32 = 6.0;
 
 pub struct BoidsPlugin;
 
@@ -8,6 +12,7 @@ impl Plugin for BoidsPlugin {
         app
             .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boids))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(move_boids))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_near_center))
             ;
     }
 }
@@ -51,6 +56,24 @@ fn move_boids (
         let focus = transform.translation - velocity.0;
         let up = transform.local_y();
         transform.look_at(focus, up);
-        transform.translation += velocity.0 * time.delta_seconds();
+        transform.translation += velocity.0 * time.delta_seconds() * SPEED;
+    }
+}
+
+fn stay_near_center (
+    mut boid_query: Query<&mut Transform, With<Boid>>,
+) {
+    let bound_limit = 20.0;
+    
+    for mut transform in boid_query.iter_mut() {
+        if transform.translation.x.abs() > bound_limit {
+            transform.translation.x = - transform.translation.x;
+        }
+        if transform.translation.z.abs() > bound_limit {
+            transform.translation.z = - transform.translation.z;
+        }
+        if transform.translation.z.abs() > bound_limit {
+            transform.translation.z = - transform.translation.z;
+        }
     }
 }

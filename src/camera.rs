@@ -17,7 +17,7 @@ fn setup_camera(
 ) {
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(0., 2., 7.),
+            transform: Transform::from_xyz(0., 2., 24.).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
             ..default()
         },
         Name::new("Camera"),
