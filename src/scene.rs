@@ -22,7 +22,7 @@ fn setup_scene(
         PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Box::new(2.0 * box_length, 2.0 * box_height, 2.0 * box_length))),
                 material: materials.add(Color::rgb_u8(100, 158, 100).into()),
-                transform: Transform::from_xyz(0., -14., 0.),
+                transform: Transform::from_xyz(0., -20., 0.),
                 ..default()
         },
         Name::new("Ground")

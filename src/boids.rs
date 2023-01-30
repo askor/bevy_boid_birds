@@ -1,6 +1,7 @@
 use std::num;
 
 use bevy::prelude::*;
+use rand::Rng;
 use crate::{GameState, loading::SceneAssets};
 
 const SPEED: f32 = 6.0;
@@ -12,7 +13,7 @@ impl Plugin for BoidsPlugin {
         app
             .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boids))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(move_boids))
-            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_near_center))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
             ;
     }
 }
@@ -36,16 +37,21 @@ fn spawn_boids (
     mut materials: ResMut<Assets<StandardMaterial>>,
     scenes: Res<SceneAssets>,
 ) {
-    commands.spawn((BoidBundle {
-        boid: Boid,
-        velocity: Velocity(Vec3::new(1.0, 0., 0.)),
-        scene_bundle: SceneBundle {
-            scene: scenes.bird.clone(),
-            transform: Transform::from_xyz(-10., 0., 0.).with_scale(Vec3::splat(0.02)),
-            ..default()
-        }},
-        Name::new("Boid"),
-    ));
+    let mut rng = rand::thread_rng();
+    
+    for i in 0..200 {
+        // let random: f32 = rng.gen();
+        commands.spawn((BoidBundle {
+            boid: Boid,
+            velocity: Velocity(Vec3::new(rng.gen_range(-10..10) as f32, rng.gen_range(-3..3) as f32, rng.gen_range(-10..10) as f32).normalize()),
+            scene_bundle: SceneBundle {
+                scene: scenes.bird.clone(),
+                transform: Transform::from_xyz(rng.gen_range(-10..10) as f32, rng.gen_range(-10..10) as f32, rng.gen_range(-10..10) as f32).with_scale(Vec3::splat(0.02)),
+                ..default()
+            }},
+            Name::new("Boid"),
+        ));
+    }
 }
 
 fn move_boids (
@@ -60,20 +66,31 @@ fn move_boids (
     }
 }
 
-fn stay_near_center (
+fn stay_inside_bounds (
     mut boid_query: Query<&mut Transform, With<Boid>>,
 ) {
-    let bound_limit = 20.0;
+    let bound_limit = 14.0;
     
     for mut transform in boid_query.iter_mut() {
-        if transform.translation.x.abs() > bound_limit {
-            transform.translation.x = - transform.translation.x;
+        if transform.translation.x > bound_limit {
+            transform.translation.x = -bound_limit;
         }
-        if transform.translation.z.abs() > bound_limit {
-            transform.translation.z = - transform.translation.z;
+        else if transform.translation.x < -bound_limit {
+            transform.translation.x = bound_limit;
         }
-        if transform.translation.z.abs() > bound_limit {
-            transform.translation.z = - transform.translation.z;
+
+        if transform.translation.y > bound_limit {
+            transform.translation.y = -bound_limit;
+        }
+        else if transform.translation.y < -bound_limit {
+            transform.translation.y = bound_limit;
+        }
+
+        if transform.translation.z > bound_limit {
+            transform.translation.z = -bound_limit;
+        }
+        else if transform.translation.z < -bound_limit {
+            transform.translation.z = bound_limit;
         }
     }
 }
