@@ -66,6 +66,14 @@ fn move_boids (
     }
 }
 
+fn avoid_nearby (
+    mut q_boid_trans: Query<&mut Transform, With<Boid>>,
+) {
+    for mut boid in q_boid_trans.iter_mut() {
+        let mut entities: [Entity; 10] = [Entity::from_raw(0); 10];
+    }
+}
+
 fn stay_inside_bounds (
     mut boid_query: Query<&mut Transform, With<Boid>>,
 ) {
