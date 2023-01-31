@@ -4,7 +4,7 @@ use bevy::{prelude::*, utils::HashMap};
 use rand::Rng;
 use crate::{GameState, loading::SceneAssets};
 
-const SPEED: f32 = 6.0;
+const SPEED: f32 = 1.0;
 
 pub struct BoidsPlugin;
 
@@ -41,8 +41,11 @@ fn spawn_boids (
 ) {
     let mut rng = rand::thread_rng();
     
-    for i in 0..200 {
+    for i in 0..1 {
         let pos = Vec3::new(rng.gen_range(-10..10) as f32, rng.gen_range(-10..10) as f32, rng.gen_range(-10..10) as f32);
+
+        println!("Pos: {}", pos);
+        println!("Calc index: {:?}", get_cell_index(pos));
 
         let id = commands.spawn((BoidBundle {
             boid: Boid,
@@ -57,7 +60,7 @@ fn spawn_boids (
 
         let index = get_cell_index(pos);
 
-        let mut entities = match grid_map.map.get_mut(&get_key(index.0, index.1, index.2)) {
+        let mut entities = match grid_map.map.get_mut(&get_key(index)) {
             Some(v) => v,
             None => panic!("Tried index {:?}", index),
         };
@@ -66,19 +69,33 @@ fn spawn_boids (
 }
 
 fn move_boids (
-    mut boid_query: Query<(&mut Transform, &Velocity), With<Boid>>,
+    mut boid_query: Query<(&mut Transform, Entity, &Velocity), With<Boid>>,
+    mut grid: ResMut<GridMap>,
     time: Res<Time>,
 ) {
-    for (mut transform, velocity) in boid_query.iter_mut() {
+    for (mut transform, entity, velocity) in boid_query.iter_mut() {
+        let prev = transform.translation;
         let focus = transform.translation - velocity.0;
         let up = transform.local_y();
         transform.look_at(focus, up);
         transform.translation += velocity.0 * time.delta_seconds() * SPEED;
+
+        let index0 = get_cell_index(prev);
+        let index1 = get_cell_index(transform.translation);
+        if index0 != index1 {
+            let vec = grid.map.get_mut(&get_key(index0)).unwrap();
+            vec.remove(
+                vec.iter().position(|x| *x == entity)
+                .expect(format!("No such entity found. Prev: {}, Current: {}", prev, transform.translation).as_str())
+            );
+            println!("New index: {:?}", index1);
+            grid.map.get_mut(&get_key(index1)).unwrap().push(entity);
+        };
     }
 }
 
-const BOUNDS: f32 = 100.0;
-const DIMENSIONS: i32 = 10;
+const BOUNDS: f32 = 20.0;
+const DIMENSIONS: i32 = 2;
 
 #[derive(Resource)]
 struct GridMap {
@@ -92,27 +109,27 @@ fn init_grid_map (
     for x in 0..DIMENSIONS {
         for y in 0..DIMENSIONS {
             for z in 0..DIMENSIONS {
-                let key = get_key(x, y, z);
+                let key = get_key((x, y, z));
                 map.insert(key, Vec::new());
-                // println!("Index: {}:{}:{}", x, y, z);
+                println!("Index: {}:{}:{}", x, y, z);
             }
         }
     }
-    println!("TEST: {:?}", get_cell_index(Vec3::new(-BOUNDS/2., 0., 0.)));
+    println!("TEST: {:?}", get_cell_index(Vec3::new(100., 0., 0.)));
     commands.insert_resource(GridMap { map });
 }
 
-fn get_key (x: i32, y: i32, z: i32) -> String {
-    return format!("{}{}{}", x, y, z);
+fn get_key (index: (i32, i32,i32)) -> String {
+    return format!("{}{}{}", index.0, index.1, index.2);
 }
 
 fn get_cell_index (pos: Vec3) -> (i32, i32, i32) {
     let min = -BOUNDS/2.0;
     let max = BOUNDS/2.0;
 
-    let x = (pos.x + BOUNDS/2.0).clamp(min, max).floor() as i32 / DIMENSIONS;
-    let y = (pos.y + BOUNDS/2.0).clamp(min, max).floor() as i32 / DIMENSIONS;
-    let z = (pos.z + BOUNDS/2.0).clamp(min, max).floor() as i32 / DIMENSIONS;
+    let x = (((pos.x + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
+    let y = (((pos.y + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
+    let z = (((pos.z + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
     return (x, y, z);
 }
 
@@ -123,6 +140,12 @@ fn get_cell_index (pos: Vec3) -> (i32, i32, i32) {
 //         let mut entities: [Entity; 10] = [Entity::from_raw(0); 10];
 //     }
 // }
+
+fn steer_towards_average_local_velocity (
+    mut query: Query<&mut Velocity>,
+) {
+
+}
 
 fn stay_inside_bounds (
     mut boid_query: Query<&mut Transform, With<Boid>>,
