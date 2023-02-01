@@ -1,0 +1,11 @@
+Model Information:
+* title:	Bird Flight Animation
+* source:	https://sketchfab.com/3d-models/bird-flight-animation-e4b42d0abc1b495abf236c60cd6d729f
+* author:	Pikawut (https://sketchfab.com/Pikawut)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Bird Flight Animation" (https://sketchfab.com/3d-models/bird-flight-animation-e4b42d0abc1b495abf236c60cd6d729f) by Pikawut (https://sketchfab.com/Pikawut) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
