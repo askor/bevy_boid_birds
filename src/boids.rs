@@ -4,7 +4,7 @@ use bevy::{prelude::*, utils::HashMap};
 use rand::Rng;
 use crate::{GameState, loading::SceneAssets};
 
-const SPEED: f32 = 1.0;
+const SPEED: f32 = 10.0;
 
 pub struct BoidsPlugin;
 
@@ -14,7 +14,7 @@ impl Plugin for BoidsPlugin {
             .add_startup_system(init_grid_map)
             .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boids))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(move_boids))
-            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
+            // .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
             ;
     }
 }
@@ -42,9 +42,9 @@ fn spawn_boids (
     let mut rng = rand::thread_rng();
     
     for i in 0..1 {
-        let pos = Vec3::new(rng.gen_range(-9..9) as f32, rng.gen_range(-9..9) as f32, rng.gen_range(-9..9) as f32);
+        let pos = Vec3::new(rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32);
 
-        println!("Pos: {}", pos);
+        println!("Spawn pos: {}", pos);
         println!("Calc index: {:?}", get_cell_index(pos));
 
         let id = commands.spawn((BoidBundle {
@@ -61,7 +61,10 @@ fn spawn_boids (
         let index = get_cell_index(pos);
 
         let mut entities = match grid_map.map.get_mut(&get_key(index)) {
-            Some(v) => v,
+            Some(v) => {
+                println!("Pushed to index {:?}", index);
+                v
+            },
             None => panic!("Tried index {:?}", index),
         };
         entities.push(id);
@@ -74,14 +77,16 @@ fn move_boids (
     time: Res<Time>,
 ) {
     for (mut transform, entity, velocity) in boid_query.iter_mut() {
+        let prev_pos = transform.translation;
         let focus = transform.translation - velocity.0;
-        let up = transform.local_y();
+        let up = Vec3::Y;
         transform.look_at(focus, up);
         
-        let prev = transform.translation;
-        let new_pos = velocity.0 * time.delta_seconds() * SPEED;
+        let new_pos = transform.translation + velocity.0 * time.delta_seconds() * SPEED;
 
-        update_grid(prev, new_pos, &mut grid, entity);
+        transform.translation = new_pos;
+
+        update_grid(prev_pos, new_pos, &mut grid, entity);
     }
 }
 
@@ -121,7 +126,17 @@ fn init_grid_map (
             }
         }
     }
-    println!("TEST: {:?}", get_cell_index(Vec3::new(100., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(-100., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(-10., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(-8., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(-5., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(-1., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(0., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(2., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(7., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(8., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(9., 0., 0.)));
+    // println!("TEST: {:?}", get_cell_index(Vec3::new(10., 0., 0.)));
     commands.insert_resource(GridMap { map });
 }
 
@@ -130,19 +145,23 @@ fn get_key (index: (i32, i32,i32)) -> String {
 }
 
 fn get_cell_index (pos: Vec3) -> (i32, i32, i32) {
+    let x = ((pos.x - BOUNDS[0].x) / (BOUNDS[1].x - BOUNDS[0].x)).clamp(0., 0.9999999);
+    let y = ((pos.y - BOUNDS[0].y) / (BOUNDS[1].y - BOUNDS[0].y)).clamp(0., 0.9999999);
+    let z = ((pos.z - BOUNDS[0].z) / (BOUNDS[1].z - BOUNDS[0].z)).clamp(0., 0.9999999);
 
-    // let x = (((pos.x + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
-    // let y = (((pos.y + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
-    // let z = (((pos.z + max).clamp(0., BOUNDS) / BOUNDS) * DIMENSIONS as f32).floor() as i32;
+    // println!("x: {:?}", x);
 
+    let x_f = (x * (DIMENSIONS[0] as f32)).floor();
+    let y_f = (y * (DIMENSIONS[1] as f32)).floor();
+    let z_f = (z * (DIMENSIONS[2] as f32)).floor();
 
-    let x = ((pos.x - BOUNDS[0].x) / (BOUNDS[1].x - BOUNDS[0].x)).clamp(0., 1.0);
-    let y = ((pos.y - BOUNDS[0].y) / (BOUNDS[1].y - BOUNDS[0].y)).clamp(0., 1.0);
-    let z = ((pos.z - BOUNDS[0].z) / (BOUNDS[1].z - BOUNDS[0].z)).clamp(0., 1.0);
+    // println!("x_f: {:?}", x_f);
 
-    let x_i = (x * (DIMENSIONS[0] as f32 - 1.0)).floor() as i32;
-    let y_i = (y * (DIMENSIONS[1] as f32 - 1.0)).floor() as i32;
-    let z_i = (z * (DIMENSIONS[2] as f32 - 1.0)).floor() as i32;
+    let z_i = z_f as i32;
+    let y_i = y_f as i32;
+    let x_i = x_f as i32;
+
+    // println!("x_i: {:?}", x_i);
 
     return (x_i, y_i, z_i);
 }
