@@ -14,7 +14,7 @@ impl Plugin for BoidsPlugin {
             .add_startup_system(init_grid_map)
             .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boids))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(move_boids))
-            // .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
             ;
     }
 }
@@ -44,8 +44,8 @@ fn spawn_boids (
     for i in 0..1 {
         let pos = Vec3::new(rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32);
 
-        println!("Spawn pos: {}", pos);
-        println!("Calc index: {:?}", get_cell_index(pos));
+        // println!("Spawn pos: {}", pos);
+        // println!("Calc index: {:?}", get_cell_index(pos));
 
         let id = commands.spawn((BoidBundle {
             boid: Boid,
@@ -93,7 +93,7 @@ fn move_boids (
 fn update_grid(prev: Vec3, new_pos: Vec3, grid: &mut ResMut<GridMap>, entity: Entity) {
     let index0 = get_cell_index(prev);
     let index1 = get_cell_index(new_pos);
-    println!("index: {:?}, pos: {}", index1, new_pos);
+    // println!("index: {:?}, pos: {}", index1, new_pos);
     if index0 != index1 {
         println!("Prev: {:?}, index: {:?}", index0, index1);
         let vec = grid.map.get_mut(&get_key(index0)).unwrap();
@@ -122,21 +122,10 @@ fn init_grid_map (
             for z in 0..DIMENSIONS[2] {
                 let key = get_key((x, y, z));
                 map.insert(key, Vec::new());
-                println!("Index: {}:{}:{}", x, y, z);
+                // println!("Index: {}:{}:{}", x, y, z);
             }
         }
     }
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(-100., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(-10., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(-8., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(-5., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(-1., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(0., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(2., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(7., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(8., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(9., 0., 0.)));
-    // println!("TEST: {:?}", get_cell_index(Vec3::new(10., 0., 0.)));
     commands.insert_resource(GridMap { map });
 }
 
@@ -185,9 +174,9 @@ fn stay_inside_bounds (
     mut boid_query: Query<(&mut Transform, Entity), With<Boid>>,
     mut grid: ResMut<GridMap>
 ) {
-    let mut new_pos = Vec3::ZERO;
     
     for (mut transform, entity) in boid_query.iter_mut() {
+        let mut new_pos = Vec3::ZERO;
         let old_pos = transform.translation;
 
         if transform.translation.x > BOUNDS[1].x {
@@ -211,8 +200,9 @@ fn stay_inside_bounds (
             new_pos.z = BOUNDS[1].z;
         }
 
-        
-        transform.translation = new_pos;
-        update_grid(old_pos, new_pos, &mut grid, entity);
+        if new_pos != Vec3::ZERO {
+            transform.translation = new_pos;
+            update_grid(old_pos, new_pos, &mut grid, entity);
+        }
     }
 }
