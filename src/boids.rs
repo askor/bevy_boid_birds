@@ -1,10 +1,15 @@
 use std::num;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap, math::vec3};
 use rand::Rng;
 use crate::{GameState, loading::SceneAssets};
 
 const SPEED: f32 = 10.0;
+const STEERING_FACTOR: f32 = 1.0;
+const BIRD_COUNT: u32 = 500;
+
+const BOUNDS: [Vec3; 2] = [Vec3::new(-20., -10., -20.), Vec3::new(20., 10., 20.)];
+const DIMENSIONS: [i32; 3] = [5, 5, 5];
 
 pub struct BoidsPlugin;
 
@@ -14,7 +19,11 @@ impl Plugin for BoidsPlugin {
             .add_startup_system(init_grid_map)
             .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_boids))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(move_boids))
-            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
+            // .add_system_set(SystemSet::on_update(GameState::Playing).with_system(stay_inside_bounds))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(steer_towards_average_local_velocity))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(update_velocity))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(steer_towards_center))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(steer_horizontal))
             ;
     }
 }
@@ -23,6 +32,7 @@ impl Plugin for BoidsPlugin {
 struct BoidBundle {
     boid: Boid,
     velocity: Velocity,
+    target: TargetVelocity,
     scene_bundle: SceneBundle,
 }
 
@@ -31,6 +41,9 @@ struct Boid;
 
 #[derive(Component)]
 struct Velocity(Vec3);
+
+#[derive(Component)]
+struct TargetVelocity(Vec3);
 
 fn spawn_boids (
     mut commands: Commands,
@@ -41,15 +54,18 @@ fn spawn_boids (
 ) {
     let mut rng = rand::thread_rng();
     
-    for i in 0..1 {
-        let pos = Vec3::new(rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32);
+    for i in 0..BIRD_COUNT {
+        let pos = Vec3::new(rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].y..BOUNDS[1].y) as f32, rng.gen_range(BOUNDS[0].z..BOUNDS[1].z) as f32);
 
         // println!("Spawn pos: {}", pos);
         // println!("Calc index: {:?}", get_cell_index(pos));
 
+        let vel = Vec3::new(rng.gen_range(-10..10) as f32, rng.gen_range(-3..3) as f32, rng.gen_range(-10..10) as f32).normalize();
+
         let id = commands.spawn((BoidBundle {
             boid: Boid,
-            velocity: Velocity(Vec3::new(rng.gen_range(-10..10) as f32, rng.gen_range(-3..3) as f32, rng.gen_range(-10..10) as f32).normalize()),
+            velocity: Velocity(vel),
+            target: TargetVelocity(vel),
             scene_bundle: SceneBundle {
                 scene: scenes.bird.clone(),
                 transform: Transform::from_translation(pos).with_scale(Vec3::splat(0.02)),
@@ -60,7 +76,7 @@ fn spawn_boids (
 
         let index = get_cell_index(pos);
 
-        let mut entities = match grid_map.map.get_mut(&get_key(index)) {
+        let entities = match grid_map.map.get_mut(&get_key(index)) {
             Some(v) => {
                 println!("Pushed to index {:?}", index);
                 v
@@ -95,7 +111,7 @@ fn update_grid(prev: Vec3, new_pos: Vec3, grid: &mut ResMut<GridMap>, entity: En
     let index1 = get_cell_index(new_pos);
     // println!("index: {:?}, pos: {}", index1, new_pos);
     if index0 != index1 {
-        println!("Prev: {:?}, index: {:?}", index0, index1);
+        // println!("Prev: {:?}, index: {:?}", index0, index1);
         let vec = grid.map.get_mut(&get_key(index0)).unwrap();
         vec.remove(
             vec.iter().position(|x| *x == entity)
@@ -104,9 +120,6 @@ fn update_grid(prev: Vec3, new_pos: Vec3, grid: &mut ResMut<GridMap>, entity: En
         grid.map.get_mut(&get_key(index1)).unwrap().push(entity);
     };
 }
-
-const BOUNDS: [Vec3; 2] = [Vec3::new(-10., -10., -10.), Vec3::new(10., 10., 10.)];
-const DIMENSIONS: [i32; 3] = [10, 10, 10];
 
 #[derive(Resource)]
 struct GridMap {
@@ -164,10 +177,57 @@ fn get_cell_index (pos: Vec3) -> (i32, i32, i32) {
 // }
 
 fn steer_towards_average_local_velocity (
-    mut query: Query<&mut Velocity>,
-    mut grid: ResMut<GridMap>
+    mut query: Query<(&Transform, &mut TargetVelocity)>,
+    q_velocity: Query<&Velocity>,
+    grid: Res<GridMap>
+) {
+    for (trans, mut target) in query.iter_mut() {
+        let index = get_cell_index(trans.translation);
+        let key = get_key(index);
+        let nearby = grid.map.get(&key).unwrap();
+
+        let list_len = nearby.len();
+        // Skip if no neighbours
+        if list_len == 0 { continue; }
+        
+        let mut average_v = Vec3::ZERO;
+
+        for near_e in nearby {
+            // let near_vel = query.get(*near_e).unwrap().1.0;
+            let near_vel = q_velocity.get(*near_e).unwrap().0;
+            average_v += near_vel / list_len as f32;
+        }
+
+        target.0 = target.0.lerp(average_v, 0.5).normalize();
+    }
+}
+
+fn steer_towards_center (
+    mut query: Query<(&Transform, &mut TargetVelocity)>,
+) {
+    for (trans, mut target) in query.iter_mut() {
+        if trans.translation.x.abs() > BOUNDS[1].x || trans.translation.y.abs() > BOUNDS[1].y || trans.translation.z.abs() > BOUNDS[1].z {
+            target.0 = target.0.lerp(-trans.translation.normalize(), 0.3);
+        }
+    }
+}
+
+fn steer_horizontal (
+    mut query: Query<(&Transform, &mut TargetVelocity)>,
+) {
+    for (trans, mut target) in query.iter_mut() {
+        target.0 = target.0.lerp(vec3(target.0.x, target.0.y.clamp(-0.1, 0.1), target.0.z), 1.);
+    }
+}
+
+fn update_velocity (
+    mut q_vel: Query<(&mut Velocity, &TargetVelocity), Changed<TargetVelocity>>,
+    time: Res<Time>,
 ) {
 
+    for (mut vel, target) in q_vel.iter_mut() {
+        vel.0 = vel.0.lerp(target.0, STEERING_FACTOR * time.delta_seconds());
+    }
 }
 
 fn stay_inside_bounds (
