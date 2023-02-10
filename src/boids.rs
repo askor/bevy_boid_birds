@@ -1,15 +1,14 @@
-use std::num;
-
 use bevy::{prelude::*, utils::HashMap, math::vec3};
 use rand::Rng;
 use crate::{GameState, loading::SceneAssets};
 
 const SPEED: f32 = 10.0;
 const STEERING_FACTOR: f32 = 1.0;
-const BIRD_COUNT: u32 = 500;
+const BIRD_COUNT: u32 = 1000;
+const BOID_DIST_TOLERANCE_SQRD: f32 = 4.0;
 
-const BOUNDS: [Vec3; 2] = [Vec3::new(-20., -10., -20.), Vec3::new(20., 10., 20.)];
-const DIMENSIONS: [i32; 3] = [5, 5, 5];
+const BOUNDS: [Vec3; 2] = [Vec3::new(-100., -100., -100.), Vec3::new(100., 100., 100.)];
+const DIMENSIONS: [i32; 3] = [20, 20, 20];
 
 pub struct BoidsPlugin;
 
@@ -24,6 +23,8 @@ impl Plugin for BoidsPlugin {
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(update_velocity))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(steer_towards_center))
             .add_system_set(SystemSet::on_update(GameState::Playing).with_system(steer_horizontal))
+            .add_system_set(SystemSet::on_update(GameState::Playing).with_system(avoid_nearby))
+            .register_type::<TargetVelocity>()
             ;
     }
 }
@@ -42,19 +43,19 @@ struct Boid;
 #[derive(Component)]
 struct Velocity(Vec3);
 
-#[derive(Component)]
-struct TargetVelocity(Vec3);
+#[derive(Component, Debug, Reflect)]
+pub(crate) struct TargetVelocity(Vec3);
 
 fn spawn_boids (
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
     mut grid_map: ResMut<GridMap>,
     scenes: Res<SceneAssets>,
 ) {
     let mut rng = rand::thread_rng();
     
-    for i in 0..BIRD_COUNT {
+    for _ in 0..BIRD_COUNT {
         let pos = Vec3::new(rng.gen_range(BOUNDS[0].x..BOUNDS[1].x) as f32, rng.gen_range(BOUNDS[0].y..BOUNDS[1].y) as f32, rng.gen_range(BOUNDS[0].z..BOUNDS[1].z) as f32);
 
         // println!("Spawn pos: {}", pos);
@@ -142,6 +143,13 @@ fn init_grid_map (
     commands.insert_resource(GridMap { map });
 }
 
+fn get_nearby (pos: Vec3, grid: &Res<GridMap>) -> Vec<Entity> {
+    let index = get_cell_index(pos);
+    let key = get_key(index);
+    let nearby = grid.map.get(&key).unwrap();
+    nearby.to_owned()
+}
+
 fn get_key (index: (i32, i32,i32)) -> String {
     return format!("{}{}{}", index.0, index.1, index.2);
 }
@@ -168,23 +176,37 @@ fn get_cell_index (pos: Vec3) -> (i32, i32, i32) {
     return (x_i, y_i, z_i);
 }
 
-// fn avoid_nearby (
-//     mut q_boid_trans: Query<&mut Transform, With<Boid>>,
-// ) {
-//     for mut boid in q_boid_trans.iter_mut() {
-//         let mut entities: [Entity; 10] = [Entity::from_raw(0); 10];
-//     }
-// }
+fn avoid_nearby (
+    mut q_target_v: Query<(&mut TargetVelocity, &Transform)>,
+    q_boid_trans: Query<&Transform, With<Boid>>,
+    grid: Res<GridMap>,
+) {
+    for (mut target, trans) in q_target_v.iter_mut() {
+        let nearby = get_nearby(trans.translation, &grid);
+        let mut avoidance_vec: Vec3 = Vec3::ZERO;
+
+        for entity in nearby {
+            let pos = q_boid_trans.get(entity).expect("Boid pos not found from entity. ").translation;
+            let offset_vec = pos - trans.translation;
+            let dist_sqrd = offset_vec.length_squared();
+            if dist_sqrd < BOID_DIST_TOLERANCE_SQRD {
+                avoidance_vec += -offset_vec.normalize_or_zero() * (BOID_DIST_TOLERANCE_SQRD.sqrt() - dist_sqrd.sqrt());
+            }
+        }
+
+        if let Some(nomalized_avoidance_vec) = avoidance_vec.try_normalize() {
+            target.0 = nomalized_avoidance_vec;
+        }
+    }
+}
 
 fn steer_towards_average_local_velocity (
     mut query: Query<(&Transform, &mut TargetVelocity)>,
     q_velocity: Query<&Velocity>,
-    grid: Res<GridMap>
+    grid: Res<GridMap>,
 ) {
     for (trans, mut target) in query.iter_mut() {
-        let index = get_cell_index(trans.translation);
-        let key = get_key(index);
-        let nearby = grid.map.get(&key).unwrap();
+        let nearby = get_nearby(trans.translation, &grid);
 
         let list_len = nearby.len();
         // Skip if no neighbours
@@ -193,12 +215,11 @@ fn steer_towards_average_local_velocity (
         let mut average_v = Vec3::ZERO;
 
         for near_e in nearby {
-            // let near_vel = query.get(*near_e).unwrap().1.0;
-            let near_vel = q_velocity.get(*near_e).unwrap().0;
+            let near_vel = q_velocity.get(near_e).unwrap().0;
             average_v += near_vel / list_len as f32;
         }
 
-        target.0 = target.0.lerp(average_v, 0.5).normalize();
+        target.0 = target.0.lerp(average_v, 0.5).normalize_or_zero();
     }
 }
 
@@ -226,11 +247,11 @@ fn update_velocity (
 ) {
 
     for (mut vel, target) in q_vel.iter_mut() {
-        vel.0 = vel.0.lerp(target.0, STEERING_FACTOR * time.delta_seconds());
+        vel.0 = vel.0.lerp(target.0, STEERING_FACTOR * time.delta_seconds()).normalize();
     }
 }
 
-fn stay_inside_bounds (
+fn _stay_inside_bounds (
     mut boid_query: Query<(&mut Transform, Entity), With<Boid>>,
     mut grid: ResMut<GridMap>
 ) {
