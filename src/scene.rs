@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_atmosphere::prelude::AtmospherePlugin;
 use crate::GameState;
 
 pub struct ScenePlugin;
@@ -6,6 +7,7 @@ pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app
+        .add_plugin(AtmospherePlugin)
         .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup_scene));
     }
 }
@@ -17,6 +19,12 @@ fn setup_scene(
 ) {
     let box_length = 100.0;
     let box_height = 10.0;
+
+    // Sun
+    commands.spawn((
+        DirectionalLightBundle::default(),
+        Name::new("Sun"),
+    ));
     
     // Ground
     commands.spawn((

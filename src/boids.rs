@@ -4,7 +4,7 @@ use crate::{GameState, loading::SceneAssets};
 
 const SPEED: f32 = 10.0;
 const STEERING_FACTOR: f32 = 1.0;
-const BIRD_COUNT: u32 = 1000;
+const BIRD_COUNT: u32 = 2000;
 const BOID_DIST_TOLERANCE_SQRD: f32 = 4.0;
 
 const BOUNDS: [Vec3; 2] = [Vec3::new(-100., -100., -100.), Vec3::new(100., 100., 100.)];

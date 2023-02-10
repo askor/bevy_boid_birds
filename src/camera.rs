@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_atmosphere::prelude::AtmosphereCamera;
 use crate::{GameState, actions::{Actions, self}};
 use bevy::ecs::event::{Events, ManualEventReader};
 use bevy::input::mouse::MouseMotion;
@@ -26,6 +27,7 @@ fn setup_camera(
         },
         Name::new("Camera"),
         FlyCam,
+        AtmosphereCamera::default(),
     ));
 }
 
