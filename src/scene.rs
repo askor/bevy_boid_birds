@@ -18,11 +18,12 @@ fn setup_scene(
     let box_length = 100.0;
     let box_height = 10.0;
     
+    // Ground
     commands.spawn((
         PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Box::new(2.0 * box_length, 2.0 * box_height, 2.0 * box_length))),
                 material: materials.add(Color::rgb_u8(100, 158, 100).into()),
-                transform: Transform::from_xyz(0., -20., 0.),
+                transform: Transform::from_xyz(0., -40., 0.),
                 ..default()
         },
         Name::new("Ground")

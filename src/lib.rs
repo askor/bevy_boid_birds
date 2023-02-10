@@ -6,6 +6,7 @@ mod player;
 mod scene;
 mod camera;
 mod boids;
+mod debugger;
 
 use crate::actions::ActionsPlugin;
 use crate::audio::InternalAudioPlugin;
@@ -15,6 +16,7 @@ use crate::player::PlayerPlugin;
 use crate::scene::ScenePlugin;
 use crate::camera::CameraPlugin;
 use crate::boids::BoidsPlugin;
+use crate::debugger::DebugPlugin;
 
 use bevy::app::App;
 #[cfg(debug_assertions)]
@@ -32,6 +34,7 @@ enum GameState {
     Playing,
     // Here the menu is drawn and waiting for player interaction
     Menu,
+    Pause,
 }
 
 pub struct GamePlugin;
@@ -47,6 +50,7 @@ impl Plugin for GamePlugin {
             .add_plugin(ScenePlugin)
             .add_plugin(CameraPlugin)
             .add_plugin(BoidsPlugin)
+            .add_plugin(DebugPlugin)
             
             // External
             .add_plugin(bevy_inspector_egui::quick::WorldInspectorPlugin)
@@ -54,8 +58,8 @@ impl Plugin for GamePlugin {
 
         #[cfg(debug_assertions)]
         {
-            app.add_plugin(FrameTimeDiagnosticsPlugin::default())
-                .add_plugin(LogDiagnosticsPlugin::default());
+            // app.add_plugin(FrameTimeDiagnosticsPlugin::default())
+            //     .add_plugin(LogDiagnosticsPlugin::default());
         }
     }
 }
