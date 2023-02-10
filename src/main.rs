@@ -15,8 +15,8 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
-                width: 800.,
-                height: 600.,
+                width: 1400.,
+                height: 1080.,
                 title: "Bevy Boid Birds".to_string(),
                 canvas: Some("#bevy".to_owned()),
                 ..Default::default()
